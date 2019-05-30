@@ -63,7 +63,7 @@ const Version = "0.0.1"
 
 // Usage is a docopt-formatted specification for this application's command line interface.
 const Usage = `Usage:
-  gotpl [--values-from-stdin] [--set <key=value>...] [-f <file>...] [--name <name>] [--namespace <namespace>] <chart>
+  gotpl [--values-from-stdin] [--set <key=value>...] [-f <file>...] [--name <name>] [--namespace <namespace>] [--template <template>...] <chart>
   gotpl -h | --help
   gotpl -v | --version
 Options:
@@ -72,6 +72,7 @@ Options:
   --values-from-stdin       set values in a YAML file which is read from stdin (default false)
   -n <name> --name <name>   release name. If unspecified, it will autogenerate one for you
   --namespace <namespace>   namespace to put the release into (default "default")
+  --template <template>     select template(s) to generate, and the order in which they are generated (default all)
   -h --help                 Show usage information
   -v --version              Show version information`
 
@@ -114,7 +115,7 @@ func getEnvironment(data []string) map[string]string {
 	return items
 }
 
- func getKeyVal(item string) (key, val string) {
+func getKeyVal(item string) (key, val string) {
 	splits := strings.Split(item, "=")
 	key = splits[0]
 	val = splits[1]
@@ -132,6 +133,27 @@ func main() {
 	chart_templates_glob := chart_templates_dir + "/*.yaml"
 	var chart_templates []string
 	chart_templates, err = filepath.Glob(chart_templates_glob)
+	var selected_templates []string = []string{}
+	if arguments["--template"] != nil {
+		for _, selected_template_name := range arguments["--template"].([]string) {
+			var i int = 0
+			for _, available_template := range chart_templates {
+				var selected_template string = chart_templates_dir + "/" + selected_template_name + ".yaml"
+				if selected_template == available_template {
+					selected_templates = append(selected_templates, selected_template)
+					i = 1
+				}
+			}
+			if i == 0 {
+				log.Println(fmt.Errorf("no such template: ", selected_template_name))
+				os.Exit(1)
+			}
+		}
+	}
+
+	if len(selected_templates) == 0 {
+		selected_templates = chart_templates
+	}
 
 	var chart_file_in io.Reader
 	chart_file_in, err = os.Open(chart_file)
@@ -254,7 +276,7 @@ func main() {
 	variables["Release"] = releasevars
 	variables["Chart"] = chartvalues
 
-	err = ExecuteTemplates(variables, os.Stdout, chart_templates...)
+	err = ExecuteTemplates(variables, os.Stdout, selected_templates...)
 	if err != nil {
 		log.Println(fmt.Errorf("Failed to run ExecuteTemplates: %v", err))
 		os.Exit(1)
