@@ -155,24 +155,26 @@ func main() {
 		selected_templates = chart_templates
 	}
 
-	var chart_file_in io.Reader
-	chart_file_in, err = os.Open(chart_file)
-	if err != nil {
-		log.Println(fmt.Errorf("Failed to open file descriptor to chart file %v: %v", chart_file, err))
-		os.Exit(1)
-	}
-	chartbuf := bytes.NewBuffer(nil)
-	_, err = io.Copy(chartbuf, chart_file_in)
-	if err != nil {
-		log.Println(fmt.Errorf("Failed to copy yaml into buffer for chart file %v: %v", chart_file, err))
-		os.Exit(1)
-	}
-
 	var chartvalues map[string]interface{}
-	err = yaml.Unmarshal(chartbuf.Bytes(), &chartvalues)
-	if err != nil {
-		log.Println(fmt.Errorf("Failed to parse yaml from chart file %v: %v", chart_file, err))
-		os.Exit(1)
+	if _, err := os.Stat(chart_file); err == nil {
+		var chart_file_in io.Reader
+		chart_file_in, err = os.Open(chart_file)
+		if err != nil {
+			log.Println(fmt.Errorf("Failed to open file descriptor to chart file %v: %v", chart_file, err))
+			os.Exit(1)
+		}
+		chartbuf := bytes.NewBuffer(nil)
+		_, err = io.Copy(chartbuf, chart_file_in)
+		if err != nil {
+			log.Println(fmt.Errorf("Failed to copy yaml into buffer for chart file %v: %v", chart_file, err))
+			os.Exit(1)
+		}
+
+		err = yaml.Unmarshal(chartbuf.Bytes(), &chartvalues)
+		if err != nil {
+			log.Println(fmt.Errorf("Failed to parse yaml from chart file %v: %v", chart_file, err))
+			os.Exit(1)
+		}
 	}
 
 	buf := bytes.NewBuffer(nil)
